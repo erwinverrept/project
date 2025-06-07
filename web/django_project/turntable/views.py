@@ -1,8 +1,8 @@
 # turntable/views.py
-from django.shortcuts import render
-from django.http import JsonResponse
+from  django.shortcuts import render
+from  django.http import JsonResponse
 import json
-from . import motor_control
+from . import laser_control
 
 def home_view(request):
     return render(request, 'turntable/home.html')
