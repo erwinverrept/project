@@ -1,0 +1,87 @@
+maak het script voor de oled autostart meet systemd
+
+
+Oké, om het OLED IP-adres script automatisch te laten starten bij het opstarten van je Raspberry Pi, gaan we een systemd service maken. Dit is de moderne en aanbevolen manier om processen op de achtergrond te beheren op Linux-systemen zoals Raspberry Pi OS.
+
+Stappenplan:
+
+Bereid je Python-script voor:
+
+Zorg ervoor dat je Python-script (bijvoorbeeld oled_ip_display.py) werkt wanneer je het handmatig uitvoert.
+Plaats het script op een locatie waar het niet per ongeluk wordt verwijderd, bijvoorbeeld in je home-directory: /home/pi/oled_ip_display.py (of waar je het ook hebt opgeslagen).
+Maak een systemd service bestand aan:
+Dit bestand vertelt systemd hoe je script moet worden uitgevoerd.
+
+Bash
+
+sudo nano /etc/systemd/system/oled_ip_display.service
+Voeg de volgende inhoud toe aan het bestand:
+(Pas de paden aan als je script op een andere locatie staat of als je een andere Python-omgeving gebruikt.)
+
+Ini, TOML
+
+[Unit]
+Description=OLED IP Display Service
+After=network-online.target  # Wacht tot het netwerk online is
+Wants=network-online.target
+
+[Service]
+User=pi                      # Voer het script uit als gebruiker 'pi' (of je eigen gebruikersnaam)
+Group=pi                     # Gebruik de 'pi' groep
+WorkingDirectory=/home/pi/   # Werk vanuit de map van het script
+# Vervang /usr/bin/python3 als je een venv gebruikt
+# ExecStart=/home/pi/my_project/venv/bin/python /home/pi/my_project/oled_ip_display.py
+ExecStart=/usr/bin/python3 /home/pi/oled_ip_display.py
+Restart=on-failure           # Herstart het script als het crasht
+RestartSec=10                # Wacht 10 seconden voor het herstarten
+StandardOutput=syslog        # Log de output naar syslog
+StandardError=syslog         # Log fouten ook naar syslog
+
+[Install]
+WantedBy=multi-user.target   # Start deze service wanneer het systeem is opgestart (niet in grafische modus)
+Belangrijke aanpassingen:
+
+User=pi: Verander pi in je daadwerkelijke gebruikersnaam op de Raspberry Pi als die anders is. Dit is belangrijk omdat de OLED-pinnen doorgaans alleen toegankelijk zijn voor gebruikers in de gpio en i2c groepen, en de pi gebruiker is hier standaard lid van.
+
+WorkingDirectory=/home/pi/: Zorg ervoor dat dit overeenkomt met de map waarin je Python-script zich bevindt.
+
+ExecStart=/usr/bin/python3 /home/pi/oled_ip_display.py:
+
+Controleer het pad naar je Python 3 executable. Meestal is dit /usr/bin/python3.
+Zorg ervoor dat het pad naar je script (/home/pi/oled_ip_display.py) correct is.
+Als je een virtuele omgeving (venv) gebruikt: Verander ExecStart naar iets als:
+ExecStart=/home/pi/my_project/venv/bin/python /home/pi/my_project/oled_ip_display.py
+Vervang /home/pi/my_project/venv/bin/python door het absolute pad naar de Python-executable binnen je venv, en pas het pad naar je script dienovereenkomstig aan.
+After=network-online.target en Wants=network-online.target: Deze regels zorgen ervoor dat de service pas start nadat de netwerkverbinding tot stand is gebracht. Dit is cruciaal voor een script dat het IP-adres moet uitlezen.
+
+Sla het bestand op en sluit het:
+Druk op Ctrl+X, dan Y om op te slaan, en tenslotte Enter.
+
+Herlaad systemd om het nieuwe servicebestand te herkennen:
+
+Bash
+
+sudo systemctl daemon-reload
+Activeer de service zodat deze bij het opstarten wordt gestart:
+
+Bash
+
+sudo systemctl enable oled_ip_display.service
+Start de service nu om te testen (zonder opnieuw op te starten):
+
+Bash
+
+sudo systemctl start oled_ip_display.service
+Controleer de status van de service:
+
+Bash
+
+sudo systemctl status oled_ip_display.service
+Je zou "active (running)" moeten zien en de laatste regels van de logs van je script. Druk op q om de statusweergave te verlaten.
+
+Herstart je Raspberry Pi om de autostart te testen:
+
+Bash
+
+sudo reboot
+Na de herstart zou je OLED-display na enige seconden (zodra het netwerk actief is) het IP-adres moeten tonen.
