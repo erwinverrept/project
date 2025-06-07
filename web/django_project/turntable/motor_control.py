@@ -8,34 +8,39 @@ except ImportError:
     print("WAARSCHUWING: RPi.GPIO kon niet worden geïmporteerd. GPIO-functionaliteit is uitgeschakeld.")
     IS_RASPBERRY_PI = False
 
-# --- Configuratie van de Motor ---
+# --- Motor Configuratie ---
 CONTROL_PINS = [17, 18, 27, 22]
-# Voor een 28BYJ-48 in 'full step' modus zijn er ~2048 stappen voor een 360 graden rotatie.
-# Dit kan licht variëren, dus pas dit getal eventueel aan voor perfecte precisie.
-STEPS_PER_REVOLUTION = 2048
+STEPS_PER_REVOLUTION = 2048 # Aantal stappen voor 360 graden. Pas eventueel aan.
+JOG_STEPS = 25 # Aantal stappen voor de 'stapje' knoppen.
 
-# Stappensequentie voor 'full step'
 STEP_SEQUENCE = [
     [1, 0, 0, 1], [1, 0, 0, 0], [1, 1, 0, 0], [0, 1, 0, 0],
     [0, 1, 1, 0], [0, 0, 1, 0], [0, 0, 1, 1], [0, 0, 0, 1]
 ]
 
-# --- State Management (Houd de huidige positie bij) ---
-# We slaan de huidige hoek op in het geheugen.
-# Let op: dit reset naar 0 elke keer dat de server herstart.
+# Houd de huidige positie bij in het geheugen. Reset bij herstart van de server.
 current_angle = 0.0
 
 def setup_gpio():
+    """Zet de GPIO-pinnen op en ruim eventuele oude configuraties op."""
     if not IS_RASPBERRY_PI: return
+    
+    # Voorkom "channel is already in use" waarschuwingen
+    GPIO.setwarnings(False)
+
+    # Ruim vorige GPIO-instellingen op. Dit is nuttig bij het herstarten van de server.
+    GPIO.cleanup() 
+    
     GPIO.setmode(GPIO.BCM)
     for pin in CONTROL_PINS:
         GPIO.setup(pin, GPIO.OUT)
         GPIO.output(pin, 0)
 
 def _perform_steps(steps, direction):
-    """Interne functie om de motor te laten draaien en de pinnen uit te schakelen."""
+    """Interne functie om de motor te laten draaien."""
     if not IS_RASPBERRY_PI:
         print(f"SIMULATIE: Draai {steps} stappen naar {direction}")
+        time.sleep(1) # Simuleer een draaitijd
         return
 
     sequence = STEP_SEQUENCE if direction == 'right' else STEP_SEQUENCE[::-1]
@@ -46,49 +51,42 @@ def _perform_steps(steps, direction):
                 GPIO.output(CONTROL_PINS[pin_index], pin_value)
             time.sleep(0.002)
 
-    # Schakel pinnen uit om oververhitting te voorkomen
+    # Schakel pinnen uit na de beweging
     for pin in CONTROL_PINS:
         GPIO.output(pin, 0)
 
-def move_by_steps(steps, direction):
-    """Beweeg de motor een relatief aantal stappen en update de hoek."""
+def move_by_degrees(degrees, direction):
+    """Beweeg de motor een specifiek aantal graden."""
     global current_angle
-    _perform_steps(steps, direction)
+    degrees = float(degrees)
+    
+    steps_to_move = int(degrees / 360.0 * STEPS_PER_REVOLUTION)
+    
+    _perform_steps(steps_to_move, direction)
 
-    # Bereken de verandering in hoek en update de staat
-    angle_change = (steps / STEPS_PER_REVOLUTION) * 360.0
+    # Update de hoek
+    if direction == 'left':
+        current_angle -= degrees
+    else:
+        current_angle += degrees
+    
+    current_angle %= 360 # Normaliseer naar 0-360
+    return current_angle
+
+def jog_motor(direction):
+    """Beweeg de motor een klein, vast aantal stappen voor fijnafstelling."""
+    global current_angle
+    
+    _perform_steps(JOG_STEPS, direction)
+
+    angle_change = (JOG_STEPS / STEPS_PER_REVOLUTION) * 360.0
     if direction == 'left':
         current_angle -= angle_change
     else:
         current_angle += angle_change
-    
-    # Zorg dat de hoek binnen 0-360 blijft
+
     current_angle %= 360
     return current_angle
 
-def move_to_angle(target_angle):
-    """Beweeg de motor naar een absolute hoek (0-359)."""
-    global current_angle
-    target_angle = float(target_angle)
-
-    # Bereken de kortste weg om te draaien
-    delta = target_angle - current_angle
-    if delta > 180:
-        delta -= 360
-    elif delta < -180:
-        delta += 360
-    
-    direction = 'right' if delta > 0 else 'left'
-    
-    # Converteer het hoekverschil naar stappen
-    steps_to_move = int(abs(delta) / 360.0 * STEPS_PER_REVOLUTION)
-    
-    if steps_to_move > 0:
-        _perform_steps(steps_to_move, direction)
-    
-    # Zet de hoek precies op de doelwaarde om cumulatieve fouten te voorkomen
-    current_angle = target_angle
-    return current_angle
-
-# Initialiseer de GPIO pinnen wanneer de module geladen wordt
+# Initialiseer GPIO
 setup_gpio()

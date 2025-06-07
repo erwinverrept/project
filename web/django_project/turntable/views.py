@@ -11,27 +11,27 @@ def turntable_view(request):
     context = {'degrees': range(360)}
     return render(request, 'turntable/turntable.html', context)
 
-def move_stepper_view(request):
-    """View voor de 'Draai links/rechts' knoppen."""
+def turn_by_degrees_view(request):
+    """Nieuwe view voor de hoofd-draaifunctie."""
     if request.method == 'POST':
         data = json.loads(request.body)
         direction = data.get('direction')
-        # Stappen per klik, bv. voor fijne afstelling
-        steps = int(data.get('steps', 20))
-        
-        new_angle = motor_control.move_by_steps(steps, direction)
-        return JsonResponse({'status': 'success', 'new_angle': new_angle})
-    
-    return JsonResponse({'status': 'error'}, status=405)
+        degrees = data.get('degrees')
 
-def set_angle_view(request):
-    """NIEUWE View om de motor op een absolute hoek te zetten."""
-    if request.method == 'POST':
-        data = json.loads(request.body)
-        target_angle = data.get('angle')
-
-        if target_angle is not None:
-            new_angle = motor_control.move_to_angle(target_angle)
+        if direction in ['left', 'right'] and degrees is not None:
+            new_angle = motor_control.move_by_degrees(degrees, direction)
             return JsonResponse({'status': 'success', 'new_angle': new_angle})
     
-    return JsonResponse({'status': 'error'}, status=405)
+    return JsonResponse({'status': 'error'}, status=400)
+
+def jog_view(request):
+    """Nieuwe view voor de fijnafstelling (jogging)."""
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        direction = data.get('direction')
+        
+        if direction in ['left', 'right']:
+            new_angle = motor_control.jog_motor(direction)
+            return JsonResponse({'status': 'success', 'new_angle': new_angle})
+            
+    return JsonResponse({'status': 'error'}, status=400)

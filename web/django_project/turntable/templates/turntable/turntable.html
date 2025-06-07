@@ -5,164 +5,162 @@
 {% block content %}
     <h1>Draaitafel - 360°</h1>
 
-    <div class="controls">
-        <label for="angle-input">Zet hoek (0-359):</label>
-        <input type="number" id="angle-input" min="0" max="359" placeholder="Typ graden en druk Enter">
-    </div>
+    <form id="turntable-form" onsubmit="return false;">
+        {% csrf_token %}
 
-    <style>
-        .controls {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .controls input {
-            padding: 8px;
-            font-size: 16px;
-            width: 250px;
-        }
-        .circle-container {
-            position: relative;
-            width: 400px;
-            height: 400px;
-            margin: 20px auto;
-            border: 2px solid black;
-            border-radius: 50%;
-        }
-        .degree-line {
-            position: absolute; bottom: 50%; left: 50%; width: 2px; height: 50%;
-            background-color: #ccc; transform-origin: bottom center;
-        }
-        .degree-line.major { background-color: #555; }
-        .degree-label {
-            position: absolute; bottom: calc(50% + 200px); left: 50%; transform-origin: 0 220px;
-            font-size: 12px;
-        }
-        /* Stijl voor de pijl */
-        .arrow {
-            position: absolute;
-            bottom: 50%;
-            left: 50%;
-            width: 4px;
-            height: 180px; /* Iets korter dan de radius */
-            background-color: red;
-            transform-origin: bottom center;
-            transform: translateX(-50%) rotate(0deg); /* Startpositie */
-            transition: transform 0.5s ease; /* Vloeiende animatie */
-        }
-        .arrow::after { /* Pijlpunt */
-            content: '';
-            position: absolute;
-            top: -10px;
-            left: -6px;
-            width: 0;
-            height: 0;
-            border-left: 10px solid transparent;
-            border-right: 10px solid transparent;
-            border-bottom: 15px solid red;
-        }
-        .button-container {
-            text-align: center;
-            margin-top: 20px;
-        }
-        .button-container button {
-            padding: 15px 30px;
-            font-size: 18px;
-            margin: 0 10px;
-            cursor: pointer;
-            border-radius: 8px;
-            border: 1px solid #555;
-            background-color: #e9e9ed;
-        }
-        .button-container button:hover {
-            background-color: #d0d0d5;
-        }
-    </style>
+        <div class="main-controls">
+            <fieldset>
+                <legend>Kies richting</legend>
+                <input type="radio" id="dir-left" name="direction" value="left" checked>
+                <label for="dir-left">Links</label>
+                <input type="radio" id="dir-right" name="direction" value="right">
+                <label for="dir-right">Rechts</label>
+            </fieldset>
 
-    <div class="circle-container">
-        <!-- Graden-verdeling (zoals voorheen) -->
-        {% for i in degrees %}
-            <div class="degree-line {% if i|divisibleby:10 %}major{% endif %}" style="transform: translateX(-50%) rotate({{ i }}deg);"></div>
-            {% if i|divisibleby:30 %}
-                <div class="degree-label" style="transform: translateX(-50%) rotate({{ i }}deg);">
-                    <span style="display:inline-block; transform: rotate(-{{i}}deg);">{{ i }}°</span>
-                </div>
-            {% endif %}
-        {% endfor %}
+            <fieldset>
+                <legend>Voer graden in</legend>
+                <input type="number" id="degrees-input" min="0" value="90">
+                <label for="degrees-input">graden</label>
+            </fieldset>
 
-        <!-- De pijl die we gaan besturen -->
-        <div class="arrow" id="arrow"></div>
-    </div>
+            <button id="btn-execute-turn" type="button">Draai</button>
+        </div>
 
-    <!-- Knoppen voor de motorbesturing -->
-    <div class="button-container">
-        <button id="btn-left">Draai links</button>
-        <button id="btn-right">Draai rechts</button>
-    </div>
+        <style>
+            .main-controls { display: flex; justify-content: center; align-items: center; gap: 20px; background-color: #f0f0f0; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+            .main-controls fieldset { border: 1px solid #ccc; border-radius: 5px; }
+            .main-controls legend { font-weight: bold; padding: 0 5px; }
+            .main-controls input[type="number"] { width: 80px; padding: 8px; font-size: 16px; }
+            .main-controls button { padding: 10px 20px; font-size: 16px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 5px; }
+            .main-controls button:disabled { background-color: #aaa; }
+            .circle-container { position: relative; width: 400px; height: 400px; margin: 20px auto; border: 2px solid black; border-radius: 50%; }
+            .degree-line { position: absolute; bottom: 50%; left: 50%; width: 2px; height: 50%; background-color: #ccc; transform-origin: bottom center; }
+            .degree-line.major { background-color: #555; }
+            .degree-label { position: absolute; bottom: calc(50% + 200px); left: 50%; transform-origin: 0 220px; font-size: 12px; }
+            .arrow { position: absolute; bottom: 50%; left: 50%; width: 4px; height: 180px; background-color: red; transform-origin: bottom center; transform: translateX(-50%) rotate(0deg); transition: transform 0.5s ease; }
+            .arrow::after { content: ''; position: absolute; top: -10px; left: -6px; width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-bottom: 15px solid red; }
+            .button-container { text-align: center; margin-top: 20px; }
+            .button-container button { padding: 15px 30px; font-size: 18px; margin: 0 10px; cursor: pointer; border-radius: 8px; border: 1px solid #555; background-color: #e9e9ed; }
+            .button-container button:hover { background-color: #d0d0d5; }
+        </style>
 
-    {% csrf_token %} <!-- Belangrijk voor POST requests! -->
+        <div class="circle-container">
+            <div class="arrow" id="arrow"></div>
+            {% for i in degrees %}
+                <div class="degree-line {% if i|divisibleby:10 %}major{% endif %}" style="transform: translateX(-50%) rotate({{ i }}deg);"></div>
+                {% if i|divisibleby:30 %}
+                    <div class="degree-label" style="transform: translateX(-50%) rotate({{ i }}deg);"><span style="display:inline-block; transform: rotate(-{{i}}deg);">{{ i }}°</span></div>
+                {% endif %}
+            {% endfor %}
+        </div>
+
+        <div class="button-container">
+            <p>Fijnafstelling:</p>
+            <button id="btn-jog-left" type="button">Stapje links</button>
+            <button id="btn-jog-right" type="button">Stapje rechts</button>
+        </div>
+    </form>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const angleInput = document.getElementById('angle-input');
+            console.log("DEBUG: DOM geladen. Script wordt uitgevoerd.");
+
+            const degreesInput = document.getElementById('degrees-input');
+            const executeBtn = document.getElementById('btn-execute-turn');
             const arrow = document.getElementById('arrow');
-            const btnLeft = document.getElementById('btn-left');
-            const btnRight = document.getElementById('btn-right');
-            
-            // Functie om de visuele pijl te updaten
-            function updateArrowPosition(degrees) {
-                const angle = parseInt(degrees, 10);
-                if (!isNaN(angle) && angle >= 0 && angle < 360) {
-                    arrow.style.transform = `translateX(-50%) rotate(${angle}deg)`;
+            const btnJogLeft = document.getElementById('btn-jog-left');
+            const btnJogRight = document.getElementById('btn-jog-right');
+
+            // Debugging om te controleren of elementen gevonden zijn
+            console.log("DEBUG: Graden-invoer:", degreesInput);
+            console.log("DEBUG: Draai-knop:", executeBtn);
+
+            function getCsrfToken() {
+                const csrfElement = document.querySelector('[name=csrfmiddlewaretoken]');
+                if (!csrfElement) {
+                    console.error("FATAL: CSRF token niet gevonden!");
+                    return null;
                 }
+                return csrfElement.value;
             }
 
-            // Luister naar Enter in het invoerveld
-            angleInput.addEventListener('keydown', function(event) {
-                if (event.key === 'Enter') {
-                    updateArrowPosition(event.target.value);
-                }
-            });
+            function updateArrowPosition(degrees) {
+                arrow.style.transform = `translateX(-50%) rotate(${degrees}deg)`;
+            }
 
-            // Functie om de motor te laten draaien via een API call
-            async function moveMotor(direction) {
-                // Haal de CSRF-token op voor een veilige POST request
-                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-                const stepsPerClick = 20; // Aantal stappen per klik, pas aan indien nodig
+            async function executeTurn() {
+                console.log("DEBUG: 'Draai' knop geklikt.");
+                const csrfToken = getCsrfToken();
+                if (!csrfToken) return;
+
+                const direction = document.querySelector('input[name="direction"]:checked').value;
+                const degrees = parseFloat(degreesInput.value);
+
+                if (isNaN(degrees) || degrees <= 0) {
+                    alert('Voer een geldig aantal graden in.');
+                    return;
+                }
+                
+                executeBtn.disabled = true;
+                executeBtn.textContent = 'Draaien...';
 
                 try {
-                    const response = await fetch('/api/move_stepper/', {
+                    const response = await fetch('/api/turn_by_degrees/', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': csrfToken
-                        },
-                        body: JSON.stringify({
-                            direction: direction,
-                            steps: stepsPerClick
-                        })
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                        body: JSON.stringify({ direction: direction, degrees: degrees })
                     });
-
-                    if (!response.ok) {
-                        console.error('Fout bij het aanroepen van de API');
-                    }
-                    
                     const result = await response.json();
-                    console.log('API antwoord:', result.message);
-
+                    if (result.status === 'success') {
+                        updateArrowPosition(result.new_angle);
+                    }
                 } catch (error) {
-                    console.error('Netwerkfout:', error);
+                    console.error('Fout bij executeTurn:', error);
+                } finally {
+                    executeBtn.disabled = false;
+                    executeBtn.textContent = 'Draai';
                 }
             }
 
-            // Koppel de moveMotor functie aan de knoppen
-            btnLeft.addEventListener('click', function() {
-                moveMotor('left');
-            });
+            async function jogMotor(direction) {
+                console.log(`DEBUG: 'Stapje ${direction}' knop geklikt.`);
+                const csrfToken = getCsrfToken();
+                if (!csrfToken) return;
 
-            btnRight.addEventListener('click', function() {
-                moveMotor('right');
-            });
+                btnJogLeft.disabled = true;
+                btnJogRight.disabled = true;
+
+                try {
+                    const response = await fetch('/api/jog/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                        body: JSON.stringify({ direction: direction })
+                    });
+                    const result = await response.json();
+                    if (result.status === 'success') {
+                        updateArrowPosition(result.new_angle);
+                    }
+                } catch (error) {
+                    console.error('Fout bij jogMotor:', error);
+                } finally {
+                    btnJogLeft.disabled = false;
+                    btnJogRight.disabled = false;
+                }
+            }
+
+            if (executeBtn) {
+                executeBtn.addEventListener('click', executeTurn);
+            } else {
+                console.error("ERROR: Kon geen event listener toevoegen aan 'Draai' knop (niet gevonden).");
+            }
+            
+            if (btnJogLeft) {
+                btnJogLeft.addEventListener('click', () => jogMotor('left'));
+            }
+
+            if (btnJogRight) {
+                btnJogRight.addEventListener('click', () => jogMotor('right'));
+            }
         });
     </script>
-
 {% endblock %}
