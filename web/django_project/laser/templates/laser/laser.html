@@ -1,0 +1,103 @@
+{% extends 'turntable/base.html' %}
+
+{% block title %}Laserbediening{% endblock %}
+
+{% block content %}
+    <h1>Laserbediening</h1>
+    <p>Schakel de laser op GPIO pin 24 aan of uit.</p>
+
+    <form onsubmit="return false;">
+        {% csrf_token %} <!-- ESSENTIËLE TOEVOEGING -->
+
+        <div class="laser-controls">
+            <button id="btn-laser-on" type="button">Laser AAN</button>
+            <button id="btn-laser-off" type="button">Laser UIT</button>
+        </div>
+
+        <div class="status-container">
+            <h3>Status: <span id="laser-status">UIT</span></h3>
+        </div>
+    </form>
+
+    <style>
+        .laser-controls button {
+            padding: 20px 40px;
+            font-size: 20px;
+            margin: 10px;
+            cursor: pointer;
+            border-radius: 8px;
+            border: 2px solid;
+        }
+        #btn-laser-on {
+            background-color: #d9f9d9;
+            border-color: #4CAF50;
+        }
+        #btn-laser-off {
+            background-color: #f9d9d9;
+            border-color: #f44336;
+        }
+        .status-container {
+            margin-top: 30px;
+            padding: 15px;
+            background-color: #f0f0f0;
+            border-radius: 8px;
+            text-align: center;
+        }
+        #laser-status.on {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        #laser-status.off {
+            color: #f44336;
+            font-weight: bold;
+        }
+    </style>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const btnOn = document.getElementById('btn-laser-on');
+            const btnOff = document.getElementById('btn-laser-off');
+            const statusText = document.getElementById('laser-status');
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+            async function setLaserState(state) {
+                // Deactiveer knoppen om dubbelklikken te voorkomen
+                btnOn.disabled = true;
+                btnOff.disabled = true;
+
+                try {
+                    const response = await fetch('/laser/api/set_state/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: JSON.stringify({ state: state })
+                    });
+
+                    const result = await response.json();
+                    if (result.status === 'success') {
+                        console.log(result.message);
+                        // Update de status tekst en kleur
+                        if (state) {
+                            statusText.textContent = 'AAN';
+                            statusText.className = 'on';
+                        } else {
+                            statusText.textContent = 'UIT';
+                            statusText.className = 'off';
+                        }
+                    }
+                } catch (error) {
+                    console.error('Fout bij het aanroepen van de API:', error);
+                } finally {
+                    // Activeer de knoppen weer
+                    btnOn.disabled = false;
+                    btnOff.disabled = false;
+                }
+            }
+
+            btnOn.addEventListener('click', () => setLaserState(true));
+            btnOff.addEventListener('click', () => setLaserState(false));
+        });
+    </script>
+{% endblock %}

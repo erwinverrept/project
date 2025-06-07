@@ -19,5 +19,6 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('turntable.urls')),  # Voeg deze regel toe
+    path('', include('turntable.urls')),
+    path('laser/', include('laser.urls')),# Voeg deze regel toe
 ]
