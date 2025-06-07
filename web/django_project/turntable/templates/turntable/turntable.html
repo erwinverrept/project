@@ -1,0 +1,168 @@
+{% extends 'turntable/base.html' %}
+
+{% block title %}Draaitafel Control{% endblock %}
+
+{% block content %}
+    <h1>Draaitafel - 360°</h1>
+
+    <div class="controls">
+        <label for="angle-input">Zet hoek (0-359):</label>
+        <input type="number" id="angle-input" min="0" max="359" placeholder="Typ graden en druk Enter">
+    </div>
+
+    <style>
+        .controls {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .controls input {
+            padding: 8px;
+            font-size: 16px;
+            width: 250px;
+        }
+        .circle-container {
+            position: relative;
+            width: 400px;
+            height: 400px;
+            margin: 20px auto;
+            border: 2px solid black;
+            border-radius: 50%;
+        }
+        .degree-line {
+            position: absolute; bottom: 50%; left: 50%; width: 2px; height: 50%;
+            background-color: #ccc; transform-origin: bottom center;
+        }
+        .degree-line.major { background-color: #555; }
+        .degree-label {
+            position: absolute; bottom: calc(50% + 200px); left: 50%; transform-origin: 0 220px;
+            font-size: 12px;
+        }
+        /* Stijl voor de pijl */
+        .arrow {
+            position: absolute;
+            bottom: 50%;
+            left: 50%;
+            width: 4px;
+            height: 180px; /* Iets korter dan de radius */
+            background-color: red;
+            transform-origin: bottom center;
+            transform: translateX(-50%) rotate(0deg); /* Startpositie */
+            transition: transform 0.5s ease; /* Vloeiende animatie */
+        }
+        .arrow::after { /* Pijlpunt */
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: -6px;
+            width: 0;
+            height: 0;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-bottom: 15px solid red;
+        }
+        .button-container {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .button-container button {
+            padding: 15px 30px;
+            font-size: 18px;
+            margin: 0 10px;
+            cursor: pointer;
+            border-radius: 8px;
+            border: 1px solid #555;
+            background-color: #e9e9ed;
+        }
+        .button-container button:hover {
+            background-color: #d0d0d5;
+        }
+    </style>
+
+    <div class="circle-container">
+        <!-- Graden-verdeling (zoals voorheen) -->
+        {% for i in degrees %}
+            <div class="degree-line {% if i|divisibleby:10 %}major{% endif %}" style="transform: translateX(-50%) rotate({{ i }}deg);"></div>
+            {% if i|divisibleby:30 %}
+                <div class="degree-label" style="transform: translateX(-50%) rotate({{ i }}deg);">
+                    <span style="display:inline-block; transform: rotate(-{{i}}deg);">{{ i }}°</span>
+                </div>
+            {% endif %}
+        {% endfor %}
+
+        <!-- De pijl die we gaan besturen -->
+        <div class="arrow" id="arrow"></div>
+    </div>
+
+    <!-- Knoppen voor de motorbesturing -->
+    <div class="button-container">
+        <button id="btn-left">Draai links</button>
+        <button id="btn-right">Draai rechts</button>
+    </div>
+
+    {% csrf_token %} <!-- Belangrijk voor POST requests! -->
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const angleInput = document.getElementById('angle-input');
+            const arrow = document.getElementById('arrow');
+            const btnLeft = document.getElementById('btn-left');
+            const btnRight = document.getElementById('btn-right');
+            
+            // Functie om de visuele pijl te updaten
+            function updateArrowPosition(degrees) {
+                const angle = parseInt(degrees, 10);
+                if (!isNaN(angle) && angle >= 0 && angle < 360) {
+                    arrow.style.transform = `translateX(-50%) rotate(${angle}deg)`;
+                }
+            }
+
+            // Luister naar Enter in het invoerveld
+            angleInput.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter') {
+                    updateArrowPosition(event.target.value);
+                }
+            });
+
+            // Functie om de motor te laten draaien via een API call
+            async function moveMotor(direction) {
+                // Haal de CSRF-token op voor een veilige POST request
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                const stepsPerClick = 20; // Aantal stappen per klik, pas aan indien nodig
+
+                try {
+                    const response = await fetch('/api/move_stepper/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: JSON.stringify({
+                            direction: direction,
+                            steps: stepsPerClick
+                        })
+                    });
+
+                    if (!response.ok) {
+                        console.error('Fout bij het aanroepen van de API');
+                    }
+                    
+                    const result = await response.json();
+                    console.log('API antwoord:', result.message);
+
+                } catch (error) {
+                    console.error('Netwerkfout:', error);
+                }
+            }
+
+            // Koppel de moveMotor functie aan de knoppen
+            btnLeft.addEventListener('click', function() {
+                moveMotor('left');
+            });
+
+            btnRight.addEventListener('click', function() {
+                moveMotor('right');
+            });
+        });
+    </script>
+
+{% endblock %}

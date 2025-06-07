@@ -1,0 +1,43 @@
+!-- turntable/templates/turntable/base.html -->
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Mijn Django App{% endblock %}</title>
+    <style>
+        body { font-family: sans-serif; margin: 0; background-color: #f4f4f9; }
+        .navbar { background-color: #333; overflow: hidden; }
+        .dropdown { float: left; overflow: hidden; }
+        .dropdown .dropbtn { font-size: 16px; border: none; outline: none; color: white; padding: 14px 16px; background-color: inherit; margin: 0; }
+        .navbar a:hover, .dropdown:hover .dropbtn { background-color: #555; cursor: pointer;}
+        .dropdown-content { display: none; position: absolute; background-color: #f9f9f9; min-width: 160px; box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2); z-index: 1; }
+        .dropdown-content a { float: none; color: black; padding: 12px 16px; text-decoration: none; display: block; text-align: left; }
+        .dropdown-content a:hover { background-color: #ddd; }
+        .dropdown:hover .dropdown-content { display: block; }
+        .content { padding: 20px; }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <div class="dropdown">
+            <button class="dropbtn">Laser</button>
+            <div class="dropdown-content">
+                <a href="#">Optie 1</a>
+            </div>
+        </div>
+        <div class="dropdown">
+            <button class="dropbtn">Draaitafel</button>
+            <div class="dropdown-content">
+                <a href="{% url 'turntable' %}">Toon Draaitafel</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content">
+        {% block content %}
+        <!-- De specifieke pagina-inhoud van andere templates komt hier -->
+        {% endblock %}
+    </div>
+</body>
+</html>
